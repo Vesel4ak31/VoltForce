@@ -24,7 +24,7 @@ python3 voltforce.py -h
 ```
 
 
-# Key Flags
+# Description of all parameters
 
 
 | Parameter name | What does the parameter do | Usage example |
