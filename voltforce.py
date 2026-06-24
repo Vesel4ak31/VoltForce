@@ -306,7 +306,7 @@ class VoltForce:
  _    __      ____     ______                   
 | |  / /___  / / /_   / ____/___  _____________  Made by Vesel4ak31 
 | | / / __ \/ / __/  / /_  / __ \/ ___/ ___/ _ \ Version 1.0
-| |/ / /_/ / / /_   / __/ / /_/ / /  / /__/  __/ Github: https://github.com/vesel4akProjects/VoltForce
+| |/ / /_/ / / /_   / __/ / /_/ / /  / /__/  __/ Github: https://github.com/Vesel4ak31/VoltForce
 |___/\____/_/\__/  /_/    \____/_/   \___/\___/  Versatile Offensive Login Tool (VOLT)
                                                 
                     """
