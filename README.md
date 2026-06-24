@@ -26,3 +26,8 @@ python3 voltforce.py -h
 
 # Key Flags
 
+
+| Parameter name | What does the parameter do | Usage example |
+|-------------|-------------|-------------|
+| --host    | A mandatory flag used to specify the target host for testing.  | python3 voltforce.py --host "127.0.0.1"   |
+| --mode/m    | Parameter to specify the service that will need to be tested. This parameter is also required. The example shows a variation with SSH.  |  python3 voltforce.py --host "127.0.0.1" --mode "ssh"  |
