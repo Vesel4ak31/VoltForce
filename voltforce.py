@@ -1498,6 +1498,10 @@ class VoltForce:
 
                 self.tasks = []
                 for host in self.hosts:
+
+                    print(self.render_text("INF", Style.BRIGHT + Fore.GREEN, f"testing host: {host}"))
+                    self.logging(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] [INFORMATION] [{self.mode.upper()}] testing host: {host}")
+                    
                     for user in self.usernames_list:
                         for password in self.passwords_list:
                             self.tasks.append((host, user, password))
