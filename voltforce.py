@@ -1492,7 +1492,7 @@ class VoltForce:
                         shuffle(self.passwords_list)
 
                 if self.socks5_address and self.socks5_port:
-                    print(self.render_text("INF", Fore.GREEN, f"socks5 proxy enabled: {self.socks5_address}:{self.socks5_port} ({self.socks5_username}:{self.socks5_password})"))
+                    print(self.render_text("INF",Style.BRIGHT + Fore.GREEN, f"socks5 proxy enabled: {self.socks5_address}:{self.socks5_port} ({self.socks5_username}:{self.socks5_password})"))
                     self.logging(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] [INFORMATION] [{self.mode.upper()}] SOCKS5 proxy enabled: {self.socks5_address}:{self.socks5_port} ({self.socks5_username}:{self.socks5_password})")
                     time.sleep(self.get_timeout())
 
