@@ -95,5 +95,8 @@ python3 voltforce.py --host "110.124.65.231" -P "/usr/share/dirb/wordlists/commo
 
 This example demonstrates a typical usage scenario. All output from VoltForce is quite minimalistic. Important note: the more threads, the greater the load on your system. If you have too many threads, you will quickly be blocked by the IDS in real attacks. For seamless use, be sure to use the --random-timeout flag to specify the random timeout radius during testing, the --delay-between flag to specify delays between tests, and the very interesting --shuffle flag, which will shuffle your wordlists as many times as desired. The number of shuffles can be specified using the --shuffle-count flag.
 
+<img width="545" height="89" alt="изображение" src="https://github.com/user-attachments/assets/4db8f645-6b64-4885-95a2-acb13216f0d6" />
+
+You can also use a SOCKS5 proxy. This is done using the `--socks5` flag. You can launch the Tor service and carry out the attack through it by simply specifying the address and port. If you wish to use a private proxy, you can also provide a username and password.
 
 
