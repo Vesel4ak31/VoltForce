@@ -99,4 +99,11 @@ This example demonstrates a typical usage scenario. All output from VoltForce is
 
 You can also use a SOCKS5 proxy. This is done using the --socks5-address,--socks5-port,--socks5-username and --socks5-password flags. You can launch the Tor service and carry out the attack through it by simply specifying the address and port. If you wish to use a private proxy, you can also provide a username and password.
 
+To reduce your chances of getting banned by IDS, I recommend using the --random-timeout, --host-timeout, --delay-between, and --max-time flags. Using the first flag, you can specify a range of values ​​to use as the timeout. --host-timeout controls the timeout when testing multiple hosts. You can also specify multiple hosts for testing using the --hosts-list flag. --delay-between will add delays before testing, and the --max-time flag allows you to specify a specific runtime for the program. Here's an example command with all these flags:
 
+```
+python3 voltforce.py --hosts-list "hosts.txt" -P "passwords.txt" -U "users.txt" --random-timeout "1-30" --host-timeout 300 --delay-between 4 --max-time 300
+```
+
+
+You can specify only one username or one password when testing using the --single-username and --single-password flags, respectively. You can also specify the --stop-on-success flag to terminate the test after the credentials are found.
