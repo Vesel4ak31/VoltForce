@@ -28,9 +28,9 @@ init(autoreset=True)
 class VoltForce:
     def __init__(self,
                  
-                target_host : str,          
-                 passwords_list=str,   
-                 usernames_list=str,
+                target_host=None,          
+                 passwords_list=None,   
+                 usernames_list=None,
                  timeout=0,
                  threads=10,
                  progress_bar=False,
@@ -99,6 +99,17 @@ class VoltForce:
         self.no_progress_bar = no_progress_bar
 
         self.hosts = hosts_list
+
+        if hosts_list:
+
+            with open(hosts_list, 'r') as f:
+                self.hosts = [line.strip() for line in f if line.strip()]
+
+        elif target_host:
+            self.hosts = [target_host]
+        else:
+            self.hosts = []
+
         self.single_password= single_password
         self.single_username= single_username 
 
@@ -125,7 +136,7 @@ class VoltForce:
 
         self.is_shuffle = is_shuffle
         self.shuffle_count = shuffle_count
-        self.shuffle_seed = [shuffle_seed]
+        self.shuffle_seed = [shuffle_seed] if shuffle_seed is not None else []
         self.shuffle_seeds_file = shuffle_seeds_file
         self.shuffle_seeds_file_path = shuffle_seeds_file
 
@@ -145,8 +156,11 @@ class VoltForce:
         self.banner = banner
         self.save_results = save_results
         self.general_wordlist = general_wordlist
+        
         self.usernames_list = []
         self.passwords_list = []
+        self.raw_usernames_list = usernames_list   
+        self.raw_passwords_list = passwords_list 
 
         self.reader = None
         self.writer = None
@@ -171,9 +185,6 @@ class VoltForce:
 
         self.filtered_usernames = None
         self.filtered_passwords = None
-
-        
-
         self.no_duplicates = no_duplicates
 
 
@@ -192,19 +203,6 @@ class VoltForce:
         if self.hosts is None:
             self.hosts = [self.target_host]
 
-
-
-
-
-
-        if self.check_general():
-
-            pass
-
-        else:
-
-            self.load_data()
-
             
         
 
@@ -217,10 +215,28 @@ class VoltForce:
         self.log_mode = log_mode
         self.stop_on_success = stop_on_success
 
+        if self.mode == "ssh-key" and self.keys_list:
+
+            with open(self.keys_list, "r") as f:
+                self.passwords_list = [line.strip() for line in f if line.strip()]
+
+        elif self.mode == "ssh-key" and self.ssh_key:
+            
+            self.passwords_list = [self.ssh_key]
+
         self.stop_timer = None
         self.is_timer_stop = False
         self.current_file = os.path.abspath(__file__)
         self.project_folder = os.path.dirname(self.current_file)
+
+
+        if self.check_general():
+
+            pass
+
+        else:
+
+            self.load_data()
 
         self.ssh_client = None
         self.ftp = None
@@ -271,6 +287,10 @@ class VoltForce:
         self.load_open_vpn_data()
 
 
+        if self.mode != "openvpn":
+            self.open_vpn_config_file_wordlist = [None]   
+
+
     
         if self.max_time:
             self.stop_timer = threading.Timer(self.max_time, self.max_time_exit_program)
@@ -312,14 +332,14 @@ class VoltForce:
                 pass
 
             else:
-                self.output_file = "./logs/{datetime.datetime.now().strftime('%d_%m_%Y_%H_%M_%S')}_logs.txt"
+                self.output_file = f"./logs/{datetime.datetime.now().strftime('%d_%m_%Y_%H_%M_%S')}_logs.txt"
   
 
 
         self.title = rf"""
  _    __      ____     ______                   
 | |  / /___  / / /_   / ____/___  _____________  Made by Vesel4ak31 
-| | / / __ \/ / __/  / /_  / __ \/ ___/ ___/ _ \ Version 1.0
+| | / / __ \/ / __/  / /_  / __ \/ ___/ ___/ _ \ Version 1.1.1
 | |/ / /_/ / / /_   / __/ / /_/ / /  / /__/  __/ Github: https://github.com/Vesel4ak31/VoltForce
 |___/\____/_/\__/  /_/    \____/_/   \___/\___/  Versatile Offensive Login Tool (VOLT)
                                                 
@@ -358,113 +378,104 @@ class VoltForce:
     def safe_print(self, message : str):
 
         with self.output_lock:
+
+
             print(message)
 
 
     def load_open_vpn_data(self) -> bool:
 
-        if self.open_vpn_config_file:
+        if self.mode == "openvpn":
 
-            self.open_vpn_config_file_path = self.open_vpn_config_file
+            if self.open_vpn_config_file:
 
-            with open(self.open_vpn_config_file, "r") as f:
+                self.open_vpn_config_file_path = self.open_vpn_config_file
 
+                with open(self.open_vpn_config_file, "r") as f:
+
+                    
+                    self.open_vpn_config_file_wordlist = [line.rstrip() for line in f.readlines()]
+                    
+
+
+            elif self.open_vpn_config_file_wordlist is not None:
+
+                self.passwords_list_path = self.open_vpn_config_file_wordlist
+                with open(self.open_vpn_config_file_wordlist, "r") as f:
+
+
+                    self.open_vpn_config_file_wordlist = [line.rstrip() for line in f.readlines()]
                 
-                self.open_vpn_config_file_wordlist = [line.rstrip() for line in f.readlines()]
-                
-
-
-        elif self.open_vpn_config_file_wordlist is not None:
-
-            self.passwords_list_path = self.open_vpn_config_file_wordlist
-            with open(self.open_vpn_config_file_wordlist, "r") as f:
-
-
-                self.open_vpn_config_file_wordlist = [line.rstrip() for line in f.readlines()]
-            
-
-        
-        else:
-
-            self.open_vpn_config_file = None
-            self.open_vpn_config_file_wordlist = ["1"]
-
-
-
-        if self.open_vpn_password:
-                
-                self.passwords_list = [self.open_vpn_password]
-                self.passwords_list_path = f"single: {self.open_vpn_password}"
-
-        elif self.open_vpn_passwords_wordlist is not None:
-                
-            with open(self.open_vpn_passwords_wordlist, "r") as f:
-
-                self.passwords_list = [line.rstrip() for line in f.readlines()]
-            self.passwords_list_path = self.open_vpn_passwords_wordlist
-
-        else:
-
-            self.passwords_list = []
-            self.passwords_list_path = None
 
             
-            
-        if self.open_vpn_username:
+            else:
+
+                self.open_vpn_config_file = None
+                self.open_vpn_config_file_wordlist = []
+
+
+
+            if self.open_vpn_password:
+                    
+                    self.passwords_list = [self.open_vpn_password]
+                    self.passwords_list_path = f"single: {self.open_vpn_password}"
+
+            elif self.open_vpn_passwords_wordlist is not None:
+                    
+                with open(self.open_vpn_passwords_wordlist, "r") as f:
+
+                    self.passwords_list = [line.rstrip() for line in f.readlines()]
+                self.passwords_list_path = self.open_vpn_passwords_wordlist
+
                 
-            self.usernames_list = [self.open_vpn_username]
-            self.usernames_list_path = f"single: {self.open_vpn_username}"
+                
+            if self.open_vpn_username:
+                    
+                self.usernames_list = [self.open_vpn_username]
+                self.usernames_list_path = f"single: {self.open_vpn_username}"
 
-        elif self.open_vpn_usernames_wordlist is not None:
+            elif self.open_vpn_usernames_wordlist is not None:
 
-            with open(self.open_vpn_usernames_wordlist, "r") as f:
+                with open(self.open_vpn_usernames_wordlist, "r") as f:
 
-                self.usernames_list = [line.rstrip() for line in f.readlines()]
-            self.usernames_list_path = self.open_vpn_usernames_wordlist
+                    self.usernames_list = [line.rstrip() for line in f.readlines()]
+                self.usernames_list_path = self.open_vpn_usernames_wordlist
 
-        else:
-
-            self.usernames_list = []
-            self.usernames_list_path = None
 
         return True
 
 
-    def load_data(self) -> None:
+    def load_data(self) -> bool:
 
         if self.single_password:
-                self.passwords_list = [self.single_password]
-                self.passwords_list_path = f"single: {self.single_password}"
+            self.passwords_list = [self.single_password]
+            self.passwords_list_path = f"single: {self.single_password}"
 
-        elif self.passwords_list is not None:
-                
-            with open(self.passwords_list, "r") as f:
-
+        elif isinstance(self.raw_passwords_list, str) and self.raw_passwords_list:
+            with open(self.raw_passwords_list, "r") as f:
                 self.passwords_list = [line.rstrip() for line in f.readlines()]
-            self.passwords_list_path = self.passwords_list
+            self.passwords_list_path = self.raw_passwords_list
 
         else:
-
             self.passwords_list = []
             self.passwords_list_path = None
 
-            
-            
         if self.single_username:
-                
             self.usernames_list = [self.single_username]
             self.usernames_list_path = f"single: {self.single_username}"
 
-        elif self.usernames_list is not None:
+        elif isinstance(self.raw_usernames_list, str) and self.raw_usernames_list:
 
-            with open(self.usernames_list, "r") as f:
+            with open(self.raw_usernames_list, "r") as f:
                 self.usernames_list = [line.rstrip() for line in f.readlines()]
-            self.usernames_list_path = self.usernames_list
+
+            self.usernames_list_path = self.raw_usernames_list
 
         else:
-
             self.usernames_list = []
             self.usernames_list_path = None
+
+        return True
 
 
     def connect_open_vpn(self) -> bool:
@@ -512,9 +523,11 @@ class VoltForce:
 
         self.success_exit()
 
-        if close_connector is None:
+        if self.stoping_event.is_set():
+            pass
+        
 
-            close_connector = lambda: None   
+
 
         if self.exec:
 
@@ -528,11 +541,13 @@ class VoltForce:
             
                 
             self.keep_connection()
-            close_connector()
+            if callable(close_connector):
+                close_connector()
 
         else: 
 
-            close_connector()
+            if callable(close_connector):
+                close_connector()
             self.success_exit()   
 
 
@@ -758,7 +773,7 @@ class VoltForce:
         self.logging(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] [INFORMATION] [{self.mode.upper()}] The runtime limit of {self.max_time} seconds has been exceeded")
         self.is_timer_stop = True
         self.stoping_event.set()
-        os._exit(0)
+        sys.exit(0)
         
 
     def success_exit(self) -> bool:
@@ -787,7 +802,7 @@ class VoltForce:
             self.stoping_event.set()
             self.safe_print(self.render_text("INF",Style.BRIGHT + Fore.GREEN,f"maximum number of reconnections reached: {Style.BRIGHT + Fore.WHITE + str(self.max_retries)}"))
             self.logging(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] [INFORMATION] [{self.mode.upper()}] Maximum number of reconnections reached: {self.max_retries}")
-            os._exit(0)
+            sys.exit(0)
 
     def brute_ssh(self,host : str,user : str,password : str, file: str) -> bool:
         self.update()
@@ -829,10 +844,11 @@ class VoltForce:
             with self.connections_lock:
                 self.total_connections += 1
 
-            self.check_flags(self.ssh_client,self.ssh_client.close())
+            self.check_flags(self.ssh_client,self.ssh_client.close)
 
         except paramiko.AuthenticationException as e:
             self.logging(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] [ERROR] [{self.mode.upper()}] SSH error: {e}")
+            self.total_connections += 1
 
         finally:
 
@@ -875,7 +891,7 @@ class VoltForce:
             with self.connections_lock:
                 self.total_connections += 1
 
-            self.check_flags(self.ftp,self.ftp.quit())
+            self.check_flags(self.ftp,self.ftp.quit)
                 
                 
         except error_perm as e:
@@ -963,7 +979,7 @@ class VoltForce:
             with self.connections_lock:
                 self.total_connections += 1
                 
-            self.check_flags(self.smbconnection,self.smbconnection.logoff())
+            self.check_flags(self.smbconnection,self.smbconnection.logoff)
                 
             
         except Exception as e:
@@ -1031,6 +1047,8 @@ class VoltForce:
 
                 if b"incorrect" in self.output.lower() or b"invalid" in self.output.lower():
                     return False
+                
+                
                 
                 return True
             
@@ -1113,7 +1131,7 @@ class VoltForce:
             with self.connections_lock:
                 self.total_connections += 1
                 
-            self.check_flags(self.mysql_connection,self.mysql_connection.close())
+            self.check_flags(self.mysql_connection,self.mysql_connection.close)
                 
                 
                 
@@ -1198,7 +1216,7 @@ class VoltForce:
             with self.connections_lock:
                 self.total_connections += 1
                 
-            self.check_flags(self.postgres_connection,self.postgres_connection.close())
+            self.check_flags(self.postgres_connection,self.postgres_connection.close)
 
                 
             
@@ -1518,7 +1536,7 @@ class VoltForce:
             with self.connections_lock:
                 self.total_connections += 1
                
-            self.check_flags(self.ssh_client,self.ssh_client.close())
+            self.check_flags(self.ssh_client,self.ssh_client.close)
 
         except paramiko.AuthenticationException as e:
              
@@ -1535,6 +1553,12 @@ class VoltForce:
     def brute_open_vpn(self,host : str,user : str,password : str, file: str):
 
         try:
+
+            if not file: 
+
+                pass
+
+
 
             if self.stoping_event.is_set():
                         return False
@@ -1624,6 +1648,7 @@ class VoltForce:
                     time.sleep(self.delay)
 
 
+
                 if self.threads > 10:
 
                     self.progress_bar = False
@@ -1672,10 +1697,10 @@ class VoltForce:
                     time.sleep(self.get_timeout())
 
 
-                if len(self.shuffle_seed) ==1:
+                if self.shuffle_seed:
                     
                     seed( int(self.shuffle_seed[0]) )
-                    print(self.render_text("SEED", Style.BRIGHT + Fore.CYAN, f"new seed installed: {self.shuffle_seed}"))
+                    print(self.render_text("SEED", Style.BRIGHT + Fore.CYAN, f"new seed installed: {self.shuffle_seed[0]}"))
                     self.logging(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] [SEED] [{self.mode.upper()}] new seed installed: {self.shuffle_seed[0]}")
                     time.sleep(self.get_timeout())
 
@@ -1707,7 +1732,8 @@ class VoltForce:
                     self.logging(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] [INFORMATION] [{self.mode.upper()}] SOCKS5 proxy enabled: {self.socks5_address}:{self.socks5_port} ({self.socks5_username}:{self.socks5_password})")
                     time.sleep(self.get_timeout())
 
-                self.open_vpn_connect()
+                self.connect_open_vpn()
+
 
                 self.tasks = []
                 for host in self.hosts:
@@ -1729,36 +1755,47 @@ class VoltForce:
                 executor = None
 
                 with ThreadPoolExecutor(max_workers=self.threads) as executor:
+                    
+                    if not self.tasks:
+
+                        print(self.render_text("ERR", Back.RED, "no credentials to test,provide usernames/passwords or keys."))
+                        sys.exit(1)
 
                     self.futures = [executor.submit(self.make_worker, h, u, p,f) for h, u, p,f in self.tasks]
                     
                     if self.progress_bar:
                         with tqdm(total=len(self.tasks), colour="blue", desc="Brute forcing", unit="attempt", dynamic_ncols=True) as pbar:
                             for future in as_completed(self.futures):
+
+                                try:
+
+                                    future.result()
+
+                                except Exception as e:
+
+                                    self.logging(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] [ERROR] [{self.mode.upper()}] Worker Error: {e}")
+                            
                                 pbar.update(1)
                     else:
 
                         for future in as_completed(self.futures):
-                            pass
+
+                            try:
+
+                                future.result()
+
+                            except Exception as e:
+
+                                self.logging(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] [ERROR] [{self.mode.upper()}] Worker Error: {e}")
 
 
-                if self.stoping_event.is_set():
-
-                    executor.shutdown(wait=False, cancel_futures=True)
-
-                else:
-
-                    for _ in as_completed(self.futures):
-                        pass
-
+                
                 print(self.render_text("INF",Style.BRIGHT + Fore.GREEN,f"voltforce has completed its work successfully"))
                 self.logging(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] [INFORMATION] [{self.mode.upper()}] Volt Force has completed its work successfully")
 
 
             except KeyboardInterrupt:
 
-                if executor:
-                    executor.shutdown(wait=False, cancel_futures=True)
 
                 print(self.render_text("WAR",Style.BRIGHT + Fore.YELLOW,f"voltforce was terminated by the user"))
                 self.logging(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] [WARNING] [{self.mode.upper()}] voltforce was terminated by the user")
@@ -1789,6 +1826,8 @@ class VoltForce:
 
                     print(self.render_text("TIM", Fore.CYAN, f"execution time: {time.time() - self.start_timer:.2f} seconds"))
                     self.logging(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] [TIMER] [{self.mode.upper()}] execution time: {time.time() - self.start_timer} seconds")
+
+                sys.exit(0)
         
             
 
