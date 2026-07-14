@@ -1,5 +1,5 @@
 # VoltForce
-VoltForce (Versatile Offensive Login Tool) is an open-source Python tool for wordlist-based brute-force attacks. It is actively maintained by the developer and currently supports brute-forcing across nine different protocols. For more detailed information, please refer to the README.md file.
+VoltForce (Versatile Offensive Login Tool) is an open-source Python tool for wordlist-based brute-force attacks. It is actively maintained by the developer and currently supports brute-forcing across ten different protocols. For more detailed information, please refer to the README.md file.
 
 <img width="1169" height="132" alt="изображение" src="https://github.com/user-attachments/assets/40a97f4f-1ac8-4713-89b5-332b22dee81e" />
 
@@ -41,6 +41,7 @@ python3 voltforce.py -h
 | -shu/--shuffle | Shuffle wordlists before starting | python3 voltforce.py --host "127.0.0.1" -shu |
 | -shuc/--shuffle-count | This flag controls how many times to mix the password. By default, VoltForce mixes passwords 10 times. | python3 voltforce.py --host "127.0.0.1" -shu -shuc 5 |
 | --seed/--shuffle-seed | A flag is used to specify a custom seed for shuffling. Specify an integer, and shuffling will work the same way. | python3 voltforce.py --host "127.0.0.1" -shu --seed 42 |
+| -ssf / --shuffle-seeds-file | This flag is needed to specify a file in which the natural numbers used as seeds for shuffling the dictionary will be written line by line. | python3 voltforce.py --host 127.0.0.1 --shuffle-seed seeds.txt |
 | -q/--quiet | Disables all console output. VoltForce won't notify you of any messages, but this mode enables logging, and all data will be written there. | python3 voltforce.py --host "127.0.0.1" -q |
 | -b/--banner | Show banner and exit | python3 voltforce.py -b |
 | -thr/--threads | The number of threads to be checked. The higher the number of threads, the more noise and activity will be in the logs. The initial value is 5 threads. | python3 voltforce.py --host "127.0.0.1" -thr 10 |
@@ -78,6 +79,13 @@ python3 voltforce.py -h
 | --max-length-password | Maximum password length to try | python3 voltforce.py --host "127.0.0.1" --max-length-password 20 |
 | -nd/--no-duplicates | Remove duplicate entries from wordlists | python3 voltforce.py --host "127.0.0.1" -nd |
 | -db/--delay-between | Delay between attempts on the same host (seconds) | python3 voltforce.py --host "127.0.0.1" -db 0.5 |
+| -vf/-ovcf/--open-vpn-config-file | This flag is used to specify the configuration file for connecting via OpenVPN. You can use it to bruteforce OpenVPN or to connect to the VPN itself. Specify the path to the configuration file. If you don't want to bruteforce OpenVPN but want to connect to it, be sure to include the --open-vpn-connect flag. | python3 voltforce.py --host "127.0.0.1" -vf "client.ovpn" |
+| -vu/-ovu/--open-vpn-username | This flag is used to specify the username when connecting to OpenVPN or brute-forcing it. You can use it for both brute-forcing and connecting to the VPN itself. Specify the username. If you don't want to brute-force OpenVPN but want to connect to it, be sure to use the --open-vpn-connect flag. | python3 voltforce.py --host "127.0.0.1" -vu "admin" |
+| -vp/-ovp/--open-vpn-password | This flag is used to specify a password when connecting to OpenVPN or brute-forcing it. You can use it both for brute-forcing and for the connection itself. Specify the password for access. If you don't want to brute-force OpenVPN but plan to connect to it, be sure to use the --open-vpn-connect flag. | python3 voltforce.py --host "127.0.0.1" -vp "password123" |
+| -vc/-ovc/--open-vpn-connect | This flag is required to confirm the OpenVPN connection. If you've entered all the required login information, VoltForce will attempt to register to establish a connection. This flag only serves as confirmation that you want to connect via OpenVPN. | python3 voltforce.py --host "127.0.0.1" -vf "client.ovpn" -vu "admin" -vp "password123" -vc |
+| -cw/-ovcfw/--open-vpn-config-file-wordlist | This flag specifies the path to a file containing, in columns, target configuration files for testing private network login credentials. If you want to use only one configuration file, use the --open-vpn-config-file flag. | python3 voltforce.py --host "127.0.0.1" -cw "configs.txt" |
+| -uw/-ovuw/--open-vpn-usernames-wordlist | This flag specifies the path to a file containing usernames in a column for testing private network login credentials. If you want to use only one username, use the --open-vpn-username flag. The username value is equivalent to the --usernames-wordlist flag. You can also specify this flag if you prefer. | python3 voltforce.py --host "127.0.0.1" -uw "users.txt" |
+| -pw/-ovpw/--open-vpn-passwords-wordlist | This flag specifies the path to a file containing a column of passwords for testing private network login credentials. If you want to use only one password, use the --open-vpn-password flag. The value of this password is equivalent to the --passwords-wordlist flag. You can also specify this flag if you prefer. | python3 voltforce.py --host "127.0.0.1" -pw "passwords.txt" |
 
 <img width="1316" height="480" alt="изображение" src="https://github.com/user-attachments/assets/8d5bbb05-7569-4a78-aa40-c65d863923f9" />
 
@@ -117,6 +125,15 @@ As for the last useful flags, I can't help but mention the --min-length-username
 # Brute-Forcing with SSH Keys
 
 VoltForce supports brute-force mode with SSH keys. To do this, you'll need to specify the --ssh-key flag. It's essentially the same as the --single-password flag. You only need to specify the path to the key file. Paramiko will detect the key type automatically. After specifying the wordlist with usernames and the target key, the brute-force process will begin. You can also specify the --keys-list flag. This is the same as --passwords-list. You should specify the paths to the target keys in the column. I decided to break this mode into a separate paragraph because it's essentially a hack. In the main code, it's actually substituted into the password field. It can confuse the user when analyzing the code, so I decided to write about it. You can easily use --passwords-list instead of --keys-list , and nothing will change, but I don't see the point unless you're really lazy.
+
+#Connecting and Bruteforcing OpenVPN
+
+<img width="2013" height="682" alt="изображение" src="https://github.com/user-attachments/assets/d88b3080-b77e-4b46-82e5-907af97777a1" />
+
+Yes, this feature has been available since version 1.1. Now you can connect to OpenVPN to hide your IP address using your login and password, as well as a configuration file, or you can bruteforce this protocol using the same data. To indicate that you want to connect to your VPN, be sure to include the --open-vpn-connect flag.
+
+<img width="2110" height="422" alt="изображение" src="https://github.com/user-attachments/assets/7e26ea21-dbae-4907-a7b4-caeb76acb87b" />
+
 
 # Connections and Arbitrary Code Execution
 
