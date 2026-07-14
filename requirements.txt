@@ -10,3 +10,4 @@ colorama
 tqdm
 socks
 pycryptodome
+openvpnclient
