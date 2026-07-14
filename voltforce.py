@@ -266,8 +266,8 @@ class VoltForce:
         self.open_vpn_config_file_wordlist=open_vpn_config_file_wordlist
         self.open_vpn_usernames_wordlist=open_vpn_usernames_wordlist
         self.open_vpn_passwords_wordlist=open_vpn_passwords_wordlist
-        self.self.open_vpn_config_file_path = None
-        self.self.passwords_list_path = None
+        self.open_vpn_config_file_path = None
+        self.passwords_list_path = None
         self.load_open_vpn_data()
 
 
@@ -319,7 +319,7 @@ class VoltForce:
         self.title = rf"""
  _    __      ____     ______                   
 | |  / /___  / / /_   / ____/___  _____________  Made by Vesel4ak31 
-| | / / __ \/ / __/  / /_  / __ \/ ___/ ___/ _ \ Version 1.1
+| | / / __ \/ / __/  / /_  / __ \/ ___/ ___/ _ \ Version 1.0
 | |/ / /_/ / / /_   / __/ / /_/ / /  / /__/  __/ Github: https://github.com/Vesel4ak31/VoltForce
 |___/\____/_/\__/  /_/    \____/_/   \___/\___/  Versatile Offensive Login Tool (VOLT)
                                                 
@@ -365,7 +365,7 @@ class VoltForce:
 
         if self.open_vpn_config_file:
 
-            self.self.open_vpn_config_file_path = self.self.open_vpn_config_file
+            self.open_vpn_config_file_path = self.open_vpn_config_file
 
             with open(self.open_vpn_config_file, "r") as f:
 
@@ -420,7 +420,7 @@ class VoltForce:
             with open(self.open_vpn_usernames_wordlist, "r") as f:
 
                 self.usernames_list = [line.rstrip() for line in f.readlines()]
-            self.usernames_list_path = self.self.open_vpn_usernames_wordlist
+            self.usernames_list_path = self.open_vpn_usernames_wordlist
 
         else:
 
