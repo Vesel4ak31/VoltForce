@@ -6,7 +6,7 @@ import argparse
 import socket
 import datetime
 from ftplib import FTP,error_perm, error_temp, error_reply
-#from impacket.smbconnection import SMBConnection # Windows defender may block this library
+from impacket.smbconnection import SMBConnection # Windows defender may block this library
 import telnetlib3
 import pymysql
 import psycopg2
